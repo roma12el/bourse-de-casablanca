@@ -16,11 +16,11 @@ st.title("🚀 AI Stock Prediction Platform")
 
 # ===============================
 # UPLOAD CSV
-# ===============================
 file = st.file_uploader(
-    "Upload market data (CSV)",
-    type=["csv"]
+    "Upload market data (CSV or Excel)",
+    type=["csv", "xlsx"]
 )
+
 
 model_choice = st.selectbox(
     "Choose Model",
