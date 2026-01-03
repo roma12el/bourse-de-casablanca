@@ -1,80 +1,34 @@
-import streamlit as st
 import pandas as pd
 
-from core.loader import load_data
-from core.features import add_features
-from core.eda import plot_eda
-from core.scenarios import apply_scenario
-from models.ml_models import get_ml_model
-from evaluation.metrics import evaluate_regression
+def load_data(file):
+    # Détection automatique du type de fichier
+    filename = file.name.lower()
 
-# ===============================
-# CONFIG STREAMLIT
-# ===============================
-st.set_page_config(layout="wide")
-st.title("🚀 AI Stock Prediction Platform")
+    if filename.endswith(".csv"):
+        df = pd.read_csv(file, sep=None, engine="python")
+    elif filename.endswith(".xlsx"):
+        df = pd.read_excel(file, engine="openpyxl")
+    else:
+        raise ValueError("Unsupported file format")
 
-# ===============================
-# UPLOAD CSV
-file = st.file_uploader(
-    "Upload market data (CSV or Excel)",
-    type=["csv", "xlsx"]
-)
+    # Nettoyage des colonnes
+    df.columns = df.columns.str.lower().str.strip()
 
+    # Détection intelligente de la colonne date
+    date_candidates = ["date", "datetime", "time", "timestamp"]
 
-model_choice = st.selectbox(
-    "Choose Model",
-    [
-        "RandomForest",
-        "XGBoost",
-        "LightGBM",
-        "SVR",
-        "LinearRegression"
-    ]
-)
+    date_col = None
+    for col in date_candidates:
+        if col in df.columns:
+            date_col = col
+            break
 
-scenario = st.selectbox(
-    "Market Scenario",
-    ["Normal", "Crash", "Bull", "Volatile"]
-)
+    if date_col is None:
+        raise ValueError(
+            f"No date column found. Available columns: {df.columns.tolist()}"
+        )
 
-# ===============================
-# MAIN PIPELINE
-# ===============================
-if file is not None:
-    try:
-        # 1. LOAD DATA
-        df = load_data(file)
+    df[date_col] = pd.to_datetime(df[date_col])
+    df.rename(columns={date_col: "date"}, inplace=True)
 
-        st.subheader("📊 Exploratory Data Analysis")
-        st.pyplot(plot_eda(df))
-
-        # 2. SCENARIO SIMULATION
-        df = apply_scenario(df, scenario)
-
-        # 3. FEATURE ENGINEERING
-        df = add_features(df)
-
-        # 4. SPLIT X / y
-        X = df.drop(columns=["close", "date"])
-        y = df["close"]
-
-        # ===============================
-        # RUN MODEL
-        # ===============================
-        if st.button("🚀 RUN FULL PIPELINE"):
-            model = get_ml_model(model_choice)
-            model.fit(X, y)
-
-            preds = model.predict(X)
-
-            metrics = evaluate_regression(y, preds)
-
-            st.subheader("📈 Model Performance")
-            st.json(metrics)
-
-            st.success("✅ Pipeline executed successfully!")
-
-    except Exception as e:
-        st.error("❌ Error while processing the file")
-        st.exception(e)
+    return df.sort_values("date")
