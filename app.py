@@ -1,34 +1,40 @@
+import streamlit as st
 import pandas as pd
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
 
-def load_data(file):
-    # Détection automatique du type de fichier
-    filename = file.name.lower()
+st.set_page_config(layout="wide")
+st.title("🚀 AI Stock Prediction Platform (SAFE MODE)")
 
-    if filename.endswith(".csv"):
-        df = pd.read_csv(file, sep=None, engine="python")
-    elif filename.endswith(".xlsx"):
-        df = pd.read_excel(file, engine="openpyxl")
-    else:
-        raise ValueError("Unsupported file format")
+file = st.file_uploader("Upload CSV file", type=["csv"])
 
-    # Nettoyage des colonnes
-    df.columns = df.columns.str.lower().str.strip()
+if file is not None:
+    try:
+        df = pd.read_csv(file)
+        df.columns = df.columns.str.lower().str.strip()
 
-    # Détection intelligente de la colonne date
-    date_candidates = ["date", "datetime", "time", "timestamp"]
+        st.write("Columns detected:", df.columns.tolist())
 
-    date_col = None
-    for col in date_candidates:
-        if col in df.columns:
-            date_col = col
-            break
+        df['date'] = pd.to_datetime(df['date'])
+        df = df.sort_values("date")
 
-    if date_col is None:
-        raise ValueError(
-            f"No date column found. Available columns: {df.columns.tolist()}"
-        )
+        st.line_chart(df.set_index("date")["close"])
 
-    df[date_col] = pd.to_datetime(df[date_col])
-    df.rename(columns={date_col: "date"}, inplace=True)
+        df["lag1"] = df["close"].shift(1)
+        df.dropna(inplace=True)
 
-    return df.sort_values("date")
+        X = df[["lag1"]]
+        y = df["close"]
+
+        if st.button("RUN MODEL"):
+            model = RandomForestRegressor(n_estimators=100)
+            model.fit(X, y)
+            preds = model.predict(X)
+
+            rmse = mean_squared_error(y, preds, squared=False)
+            st.success(f"✅ Model ran successfully | RMSE = {rmse:.4f}")
+
+    except Exception as e:
+        st.error("❌ ERROR")
+        st.exception(e)
+
