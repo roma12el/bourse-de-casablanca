@@ -15,8 +15,21 @@ if file is not None:
 
         st.write("Columns detected:", df.columns.tolist())
 
-        df['date'] = pd.to_datetime(df['date'])
-        df = df.sort_values("date")
+       # Nettoyage des noms de colonnes
+df.columns = df.columns.str.lower().str.strip()
+
+# Renommer la colonne date si nécessaire
+if "exchange date" in df.columns:
+    df.rename(columns={"exchange date": "date"}, inplace=True)
+
+# Vérification finale
+if "date" not in df.columns:
+    st.error(f"No date column found. Columns detected: {df.columns.tolist()}")
+    st.stop()
+
+df["date"] = pd.to_datetime(df["date"])
+df = df.sort_values("date")
+
 
         st.line_chart(df.set_index("date")["close"])
 
